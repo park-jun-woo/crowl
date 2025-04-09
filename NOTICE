@@ -41,6 +41,7 @@ https://creativecommons.org/publicdomain/zero/1.0/
 
 You can freely use, modify, and distribute this dataset without any restrictions.
 
+4. YAML support for the Go language (https://gopkg.in/yaml.v3)
 
 Copyright (c) 2009 The Go Authors. All rights reserved.
 

@@ -16,16 +16,50 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/shirou/gopsutil/v3/cpu"
+	"gopkg.in/yaml.v3"
 )
 
-type CommonCrowl struct {
-	Workers  int
-	Predowns int
-	BaseURL  string
-	TempDir  string
+type CommonCrawl struct {
+	Workers         int    `yaml:"workers"`
+	Predowns        int    `yaml:"predowns"`
+	BaseURL         string `yaml:"base_url"`
+	TempDir         string `yaml:"temp_dir"`
+	RemoveSelectors struct {
+		Tags          []string `yaml:"tags"`
+		Classes       []string `yaml:"classes"`
+		ClassKeywords []string `yaml:"class_keywords"`
+		Attributes    []string `yaml:"attributes"`
+	} `yaml:"remove_selectors"`
 }
 
-func NewCommonCrowl(workers int, predowns int) *CommonCrowl {
+func LoadCommonCrawl(path string) (*CommonCrawl, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg CommonCrawl
+	if err := yaml.Unmarshal(file, &cfg); err != nil {
+		return nil, err
+	}
+
+	if cfg.Workers == 0 {
+		var workerNums int
+		workerNums, err = cpu.Counts(false) // 물리적 코어 수 반환 (logical=false)
+		if err != nil {
+			panic(err)
+		}
+		cfg.Workers = workerNums
+	}
+
+	if cfg.Predowns == 0 {
+		cfg.Predowns = 10
+	}
+
+	return &cfg, nil
+}
+
+func NewCommonCrawl(workers int, predowns int) *CommonCrawl {
 	var workerNums int
 	var err error
 
@@ -42,7 +76,7 @@ func NewCommonCrowl(workers int, predowns int) *CommonCrowl {
 		predowns = 10
 	}
 
-	return &CommonCrowl{
+	return &CommonCrawl{
 		Workers:  workerNums,
 		Predowns: predowns,
 		BaseURL:  "https://data.commoncrawl.org/",
@@ -50,7 +84,7 @@ func NewCommonCrowl(workers int, predowns int) *CommonCrowl {
 	}
 }
 
-func (cc *CommonCrowl) GetNews() error {
+func (cc *CommonCrawl) GetNews() error {
 	/*
 		// 지정한 연도와 월에 해당하는 warc.paths.gz 파일 다운로드
 		paths, err := cc.getNewsWarcPaths()
@@ -71,7 +105,7 @@ func (cc *CommonCrowl) GetNews() error {
 
 // GetWarcPaths는 지정한 연도(y), 월(m)의 warc.paths.gz 파일을 다운로드하여 압축 해제 후,
 // 그 내용을 파싱하여 WARC 파일 경로 목록을 반환합니다.
-func (cc *CommonCrowl) getNewsWarcPaths(year int, month int) ([]string, error) {
+func (cc *CommonCrawl) getNewsWarcPaths(year int, month int) ([]string, error) {
 	// URL 생성 (월을 항상 두 자리로 맞춤)
 	url := fmt.Sprintf("%scrawl-data/CC-NEWS/%d/%02d/warc.paths.gz", cc.BaseURL, year, month)
 
@@ -134,7 +168,7 @@ func (cc *CommonCrowl) getNewsWarcPaths(year int, month int) ([]string, error) {
 	return paths, nil
 }
 
-func (cc *CommonCrowl) parseWarc(filePath string) error {
+func (cc *CommonCrawl) parseWarc(filePath string) error {
 	iu := 0
 	// WARC 파일을 열고 압축 해제
 	file, err := os.Open(filePath)
@@ -202,7 +236,7 @@ NEXT_FILE:
 	return nil
 }
 
-func (cc *CommonCrowl) parseBody(rawurl string, content []byte) error {
+func (cc *CommonCrawl) parseBody(rawurl string, content []byte) error {
 	// 헤더와 본문 분리
 	headerEnd := bytes.Index(content, []byte("\r\n\r\n"))
 	if headerEnd == -1 {
@@ -215,7 +249,7 @@ func (cc *CommonCrowl) parseBody(rawurl string, content []byte) error {
 	// 실제 HTML 본문 시작 위치 (+4는 \r\n\r\n 길이)
 	htmlContent := content[headerEnd+4:]
 
-	cleaned, err := cleanHTML(htmlContent)
+	cleaned, err := cc.cleanHTML(htmlContent)
 	if err != nil {
 		return err
 	}
@@ -245,44 +279,16 @@ func (cc *CommonCrowl) parseBody(rawurl string, content []byte) error {
 }
 
 // CleanHTML은 불필요한 태그들을 제거한 HTML 본문을 반환합니다.
-func cleanHTML(rawHTML []byte) ([]byte, error) {
+func (cc *CommonCrawl) cleanHTML(rawHTML []byte) ([]byte, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(rawHTML))
 	if err != nil {
 		return nil, err
 	}
 
-	// 제거할 태그 및 요소들 (명백히 불필요한 태그)
-	removeSelectors := []string{
-		"script", "style", "link", "nav", "button", "meta", "noscript", "iframe",
-		"form", "input", "select", "textarea", "svg", "img", "footer", "aside",
-		"body > a",
-	}
-
-	// 클래스명 검사할 키워드 목록
-	removeClassKeywords := []string{
-		"share", "social", "banner", "^ad", "adv",
-	}
-
-	// 제거할 클래스 선택자 초기화
-	removeClassSelectors := []string{
-		"googleAd",
-	}
-
-	// 기본적으로 제거할 속성들
-	removeAttrs := []string{
-		"style", "role", "tabindex", "contenteditable", "spellcheck",
-		"draggable", "hidden", "translate", "autofocus", "autoplay",
-		"controls", "loop", "muted", "playsinline", "preload",
-		"src", "target", "rel", "type", "href",
-		"width", "height", "size", "maxlength", "minlength", "border", "cellspacing",
-		"cellpadding", "align", "valign", "bgcolor", "background", "bordercolor",
-		"marginheight", "marginwidth", "leftmargin", "topmargin",
-	}
-
 	// 중복 방지를 위해 map 사용
 	removeClassMap := make(map[string]struct{})
 	attrMap := make(map[string]struct{})
-	for _, attr := range removeAttrs {
+	for _, attr := range cc.RemoveSelectors.Attributes {
 		attrMap[attr] = struct{}{}
 	}
 
@@ -316,7 +322,7 @@ func cleanHTML(rawHTML []byte) ([]byte, error) {
 			classes := strings.Fields(classAttr)
 			for _, className := range classes {
 				lowerClass := strings.ToLower(className)
-				if containsAnyKeyword(lowerClass, removeClassKeywords) {
+				if containsAnyKeyword(lowerClass, cc.RemoveSelectors.ClassKeywords) {
 					selector := "." + className
 					removeClassMap[selector] = struct{}{}
 				}
@@ -332,16 +338,22 @@ func cleanHTML(rawHTML []byte) ([]byte, error) {
 	})
 
 	// 선택한 요소 제거
-	for _, sel := range removeSelectors {
+	for _, sel := range cc.RemoveSelectors.Tags {
 		doc.Find(sel).Remove()
 	}
 
 	// 클래스 선택자 삭제
 	for sel := range removeClassMap {
-		removeClassSelectors = append(removeClassSelectors, sel)
+		cc.RemoveSelectors.Classes = append(cc.RemoveSelectors.Classes, sel)
 	}
-	for _, sel := range removeClassSelectors {
-		doc.Find(sel).Remove()
+
+	// 클래스 선택자 제거
+	for _, sel := range cc.RemoveSelectors.Classes {
+		doc.Find(sel).Each(func(i int, s *goquery.Selection) {
+			if goquery.NodeName(s) != "body" {
+				s.Remove()
+			}
+		})
 	}
 
 	// 속성 최종 제거 (중복 없이 처리)
@@ -405,7 +417,7 @@ func parseHeader(headerLines []string) map[string]string {
 }
 
 // DownloadedWarc는 warcPath 파일을 다운로드합니다.
-func (cc *CommonCrowl) downloadedWarc(warcPath string) (string, error) {
+func (cc *CommonCrawl) downloadedWarc(warcPath string) (string, error) {
 	baseURL := "https://data.commoncrawl.org/"
 
 	re := regexp.MustCompile(`CC-NEWS-(\d{4})(\d{2})\d{8}-\d{5}\.warc\.gz`)

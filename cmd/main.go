@@ -26,6 +26,9 @@ func main() {
 			}
 		}
 	*/
-	cc := commoncrawl.NewCommonCrowl(0, 0)
+	cc, err := commoncrawl.LoadCommonCrawl("../config/commoncrawl.yaml")
+	if err != nil {
+		panic(err)
+	}
 	cc.GetNews()
 }

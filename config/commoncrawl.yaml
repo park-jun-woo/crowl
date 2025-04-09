@@ -1,0 +1,75 @@
+workers: 0
+predowns: 0
+base_url: "https://data.commoncrawl.org/"
+temp_dir: "../tmp/commoncrawl/"
+
+remove_selectors:
+  tags:
+    - script
+    - style
+    - link
+    - nav
+    - button
+    - meta
+    - noscript
+    - iframe
+    - form
+    - input
+    - select
+    - textarea
+    - svg
+    - img
+    - footer
+    - aside
+    - source
+    - picture
+    - "body > a"
+
+  classes:
+    - ".googleAd"
+
+  class_keywords:
+    - share
+    - social
+    - banner
+    - "^ad"
+    - adv
+
+  attributes:
+    - style
+    - role
+    - tabindex
+    - contenteditable
+    - spellcheck
+    - draggable
+    - hidden
+    - translate
+    - autofocus
+    - autoplay
+    - controls
+    - loop
+    - muted
+    - playsinline
+    - preload
+    - src
+    - target
+    - rel
+    - type
+    - href
+    - width
+    - height
+    - size
+    - maxlength
+    - minlength
+    - border
+    - cellspacing
+    - cellpadding
+    - align
+    - valign
+    - bgcolor
+    - background
+    - bordercolor
+    - marginheight
+    - marginwidth
+    - leftmargin
+    - topmargin
