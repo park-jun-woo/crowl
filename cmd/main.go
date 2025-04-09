@@ -1,6 +1,6 @@
 package main
 
-import "parkjunwoo.com/crowl/internal/commoncrawl"
+import "parkjunwoo.com/crowl/pkg/commoncrawl"
 
 func main() {
 	/*

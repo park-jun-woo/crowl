@@ -22,6 +22,7 @@ type CommonCrowl struct {
 	Workers  int
 	Predowns int
 	BaseURL  string
+	TempDir  string
 }
 
 func NewCommonCrowl(workers int, predowns int) *CommonCrowl {
@@ -45,6 +46,7 @@ func NewCommonCrowl(workers int, predowns int) *CommonCrowl {
 		Workers:  workerNums,
 		Predowns: predowns,
 		BaseURL:  "https://data.commoncrawl.org/",
+		TempDir:  "../tmp/commoncrawl/",
 	}
 }
 
@@ -57,8 +59,8 @@ func (cc *CommonCrowl) GetNews() error {
 		}
 	*/
 
-	warcPath := "./tmp/commoncrawl/CC-NEWS-20250407010645-01509.warc.gz"
-	err := parseWarc(warcPath)
+	warcPath := fmt.Sprintf("%sCC-NEWS-20250407010645-01509.warc.gz", cc.TempDir)
+	err := cc.parseWarc(warcPath)
 	if err != nil {
 		fmt.Println("WARC 파일 파싱 오류:", err)
 		return err
@@ -74,12 +76,11 @@ func (cc *CommonCrowl) getNewsWarcPaths(year int, month int) ([]string, error) {
 	url := fmt.Sprintf("%scrawl-data/CC-NEWS/%d/%02d/warc.paths.gz", cc.BaseURL, year, month)
 
 	// 다운로드할 파일 경로 설정
-	destDir := "./tmp/commoncrawl/"
-	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(cc.TempDir, os.ModePerm); err != nil {
 		return nil, err
 	}
 
-	gzipFilePath := filepath.Join(destDir, "warc.paths.gz")
+	gzipFilePath := filepath.Join(cc.TempDir, "warc.paths.gz")
 	outFile, err := os.Create(gzipFilePath)
 	if err != nil {
 		return nil, err
@@ -133,7 +134,7 @@ func (cc *CommonCrowl) getNewsWarcPaths(year int, month int) ([]string, error) {
 	return paths, nil
 }
 
-func parseWarc(filePath string) error {
+func (cc *CommonCrowl) parseWarc(filePath string) error {
 	iu := 0
 	// WARC 파일을 열고 압축 해제
 	file, err := os.Open(filePath)
@@ -187,7 +188,7 @@ func parseWarc(filePath string) error {
 			continue
 		}
 		fmt.Println("[워커] ", warcType, ":", url, contentLength)
-		parseBody(url, content)
+		cc.parseBody(url, content)
 		iu++
 		if iu > 10 {
 			fmt.Println("[워커] 10개 이상 읽음")
@@ -201,7 +202,7 @@ NEXT_FILE:
 	return nil
 }
 
-func parseBody(rawurl string, content []byte) error {
+func (cc *CommonCrowl) parseBody(rawurl string, content []byte) error {
 	// 헤더와 본문 분리
 	headerEnd := bytes.Index(content, []byte("\r\n\r\n"))
 	if headerEnd == -1 {
@@ -229,11 +230,10 @@ func parseBody(rawurl string, content []byte) error {
 		filepath.Base(parsedURL.Path),
 	)
 
-	tmpDir := "./tmp/commoncrawl/"
-	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(cc.TempDir, os.ModePerm); err != nil {
 		return err
 	}
-	filePath := filepath.Join(tmpDir, filename)
+	filePath := filepath.Join(cc.TempDir, filename)
 
 	// HTML 본문만 저장
 	if err := os.WriteFile(filePath, cleaned, 0644); err != nil {
@@ -405,7 +405,7 @@ func parseHeader(headerLines []string) map[string]string {
 }
 
 // DownloadedWarc는 warcPath 파일을 다운로드합니다.
-func downloadedWarc(warcPath string) (string, error) {
+func (cc *CommonCrowl) downloadedWarc(warcPath string) (string, error) {
 	baseURL := "https://data.commoncrawl.org/"
 
 	re := regexp.MustCompile(`CC-NEWS-(\d{4})(\d{2})\d{8}-\d{5}\.warc\.gz`)
@@ -416,12 +416,11 @@ func downloadedWarc(warcPath string) (string, error) {
 	}
 
 	// 다운로드할 임시 폴더 생성
-	tmpDir := "./tmp/commoncrawl/"
-	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(cc.TempDir, os.ModePerm); err != nil {
 		return "", err
 	}
 
-	destPath := filepath.Join(tmpDir, filepath.Base(warcPath))
+	destPath := filepath.Join(cc.TempDir, filepath.Base(warcPath))
 
 	// 파일 다운로드
 	resp, err := http.Get(baseURL + warcPath)

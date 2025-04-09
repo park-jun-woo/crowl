@@ -25,7 +25,7 @@
 ### 설치 방법
 
 ```bash
-git clone https://github.com/your_username/crowl.git
+git clone https://github.com/park-jun-woo/crowl.git
 cd crowl
 go mod tidy
 go build -o crowl
@@ -50,7 +50,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/your_username/crowl/commoncrawl"
+	"parkjunwoo.com/crowl/pkg/commoncrawl"
 )
 
 func main() {
@@ -68,7 +68,7 @@ func main() {
 ```
 crowl/
 ├── cmd/               # 실행 가능한 코드 및 진입점
-├── internal/          # 내부 라이브러리 코드
+├── pkg/               # 라이브러리 코드
 │   └── commoncrawl/   # Common Crawl 관련 기능 구현
 ├── tmp/               # 임시 파일 저장소 (자동 생성됨)
 ├── data/              # 처리된 데이터 저장소 (자동 생성됨)
