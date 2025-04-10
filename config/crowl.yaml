@@ -1,8 +1,10 @@
 workers: 0
 predowns: 0
 base_url: "https://data.commoncrawl.org/"
-temp_dir: "../tmp/commoncrawl/"
-data_dir: "../data/commoncrawl/"
+temp_dir: "../../tmp/commoncrawl/"
+data_dir: "../../data/commoncrawl/"
+batch_size: 4
+py_path: "../../scripts/valid.py"
 
 remove_selectors:
   tags:

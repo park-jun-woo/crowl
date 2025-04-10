@@ -1,4 +1,4 @@
-package commoncrawl
+package crowl
 
 import (
 	"bufio"
@@ -72,7 +72,7 @@ func NewCommonCrawl(path string) (*CommonCrawl, error) {
 	}
 
 	if cfg.Predowns == 0 {
-		cfg.Predowns = cfg.Workers / 2
+		cfg.Predowns = cfg.Workers / 4
 	}
 
 	return &cfg, nil

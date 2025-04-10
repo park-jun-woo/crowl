@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"parkjunwoo.com/crowl/pkg/commoncrawl"
+	"parkjunwoo.com/crowl/pkg/crowl"
 )
 
 func main() {
-	cc, err := commoncrawl.NewCommonCrawl("../config/commoncrawl.yaml")
+	cc, err := crowl.NewCommonCrawl("../config/commoncrawl.yaml")
 	if err != nil {
 		panic(err)
 	}
@@ -27,7 +27,7 @@ func main() {
 	}
 }
 
-func parseWarcTest(cc *commoncrawl.CommonCrawl, filePath string, savePath string) error {
+func parseWarcTest(cc *crowl.CommonCrawl, filePath string, savePath string) error {
 	// WARC 파일을 열고 압축 해제
 	file, err := os.Open(filePath)
 	if err != nil {
