@@ -2,6 +2,7 @@ workers: 0
 predowns: 0
 base_url: "https://data.commoncrawl.org/"
 temp_dir: "../tmp/commoncrawl/"
+data_dir: "../data/commoncrawl/"
 
 remove_selectors:
   tags:
