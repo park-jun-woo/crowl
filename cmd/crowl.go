@@ -8,5 +8,5 @@ func main() {
 		panic(err)
 	}
 
-	cc.GetNews(2025, 4)
+	cc.GetNews(2025, 3)
 }
