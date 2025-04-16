@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
@@ -11,32 +11,24 @@ model_id = "meta-llama/Llama-3.1-8B"
 config = AutoConfig.from_pretrained(model_id)
 config.attn_implementation = "flash_attention_2"
 
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_compute_dtype=torch.float16,
-)
-
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 tokenizer.pad_token = tokenizer.eos_token
 
-# 모델 로딩 상태 플래그
 model_loaded = False
 
 @app.on_event("startup")
 def load_model():
     global model, model_loaded
-    print("🚀 모델 로딩 시작...")
+    print("🚀 모델 로딩 시작 (FP16)...")
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         config=config,
-        quantization_config=bnb_config,
+        torch_dtype=torch.float16,  # FP16 로딩
         device_map="auto",
         max_memory={0: "14GiB", "cpu": "16GiB"}
     )
     model_loaded = True
-    print("✅ 모델 로딩 완료!")
+    print("✅ 모델 로딩 완료 (FP16)!")
 
 class PromptRequest(BaseModel):
     texts: list[str]
@@ -59,13 +51,12 @@ async def infer(request: PromptRequest):
 {text}
 
 [Question]
-Is the above text an actual news article or an error page?  
-Respond with exactly one word from:
+Classify the text above strictly into one of the following labels:
 - article
 - error
 - unknown
 
-[Answer]
+Label:
 """ for text in request.texts]
 
         inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
@@ -81,7 +72,6 @@ Respond with exactly one word from:
             )
 
         generated_texts = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-#        answers = [text.split("[Answer]")[-1].strip().split()[0] for text in generated_texts]
 
         return {"answers": generated_texts}
 
